@@ -1,0 +1,12 @@
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+.vscode/
+.idea/
+*.pyc
+__pycache__/
+
+# Vendored after first fetch — see README
+components/M5GFX/
