@@ -73,12 +73,14 @@ With Node/npm (scripts load ESP-IDF for you):
 npm run deps              # clone M5GFX once
 npm run setup             # idf.py set-target esp32s3 (once per checkout)
 npm run build
-npm run flash:monitor     # default PORT=/dev/cu.usbmodem101
+npm run dev               # flash + monitor (alias: flash:monitor)
 ```
 
-Day-to-day loop after setup: edit → `npm run flash:monitor`. That rebuilds only what changed, flashes, and opens the serial monitor. There is no live reload; avoid `npm run clean` unless the build is broken. Use `npm run monitor` alone when you only need serial output and the device is already flashed.
+Day-to-day loop after setup: edit → `npm run dev`. That rebuilds only what changed, flashes, and opens the serial monitor. There is no live reload; avoid `npm run clean` unless the build is broken. Use `npm run monitor` alone when you only need serial output and the device is already flashed.
 
-Other scripts: `npm run flash`, `npm run monitor`, `npm run menuconfig`, `npm run clean`, `npm run bin` (writes merged flash image to `bins/`).
+`flash` / `monitor` / `dev` auto-pick a USB serial port (`/dev/cu.usbmodem*` on macOS, `/dev/ttyACM*` on Linux) via `scripts/port.sh`. Override with `PORT=…` if needed.
+
+Other scripts: `npm run flash`, `npm run monitor`, `npm run flash:monitor`, `npm run menuconfig`, `npm run clean`, `npm run bin` (writes merged flash image to `bins/`).
 
 Prebuilt merged image (bootloader + partition table + app, flash at `0x0`):
 
@@ -87,12 +89,12 @@ Prebuilt merged image (bootloader + partition table + app, flash at `0x0`):
 Override the serial port:
 
 ```bash
-PORT=/dev/cu.usbmodem14201 npm run flash:monitor
+PORT=/dev/cu.usbmodem14201 npm run dev
 ```
 
 Or call `idf.py` directly after `. ~/esp/esp-idf/export.sh`.
 
-Linux often uses `/dev/ttyACM0`. Put the device in download mode if flash fails (hold G0 / reset per Stamp-S3 docs).
+Put the device in download mode if flash fails (hold G0 / reset per Stamp-S3 docs).
 
 ## What the sample does
 
@@ -101,8 +103,9 @@ Clears the LCD, waits for one TCA8418 key press, then draws the key code. That p
 ## Layout
 
 ```
-package.json          # npm run build / flash / …
+package.json          # npm run build / flash / dev / …
 scripts/idf.sh        # sources ESP-IDF, runs idf.py
+scripts/port.sh       # auto-detect USB serial port (or $PORT)
 bins/                 # merged .bin (flash at 0x0)
 CMakeLists.txt
 sdkconfig.defaults    # 8 MB flash, USB Serial/JTAG console

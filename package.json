@@ -6,9 +6,10 @@
     "deps": "test -d components/M5GFX || git clone --branch 0.2.33 --depth 1 https://github.com/m5stack/M5GFX.git components/M5GFX",
     "setup": "bash scripts/idf.sh set-target esp32s3",
     "build": "bash scripts/idf.sh build",
-    "flash": "bash scripts/idf.sh -p \"${PORT:-/dev/cu.usbmodem101}\" flash",
-    "monitor": "bash scripts/idf.sh -p \"${PORT:-/dev/cu.usbmodem101}\" monitor",
-    "flash:monitor": "bash scripts/idf.sh -p \"${PORT:-/dev/cu.usbmodem101}\" flash monitor",
+    "flash": "bash scripts/idf.sh -p \"$(bash scripts/port.sh)\" flash",
+    "monitor": "bash scripts/idf.sh -p \"$(bash scripts/port.sh)\" monitor",
+    "flash:monitor": "bash scripts/idf.sh -p \"$(bash scripts/port.sh)\" flash monitor",
+    "dev": "npm run flash:monitor",
     "menuconfig": "bash scripts/idf.sh menuconfig",
     "clean": "bash scripts/idf.sh fullclean",
     "bin": "mkdir -p bins && bash scripts/idf.sh merge-bin -o \"$PWD/bins/cardputer_adv_template.bin\""
