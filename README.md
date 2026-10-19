@@ -70,27 +70,29 @@ After this, builds do not need the network.
 With Node/npm (scripts load ESP-IDF for you):
 
 ```bash
-npm run deps              # clone M5GFX once
+npm run deps              # clone M5GFX once into components/
 npm run setup             # idf.py set-target esp32s3 (once per checkout)
-npm run build
-npm run dev               # flash + monitor (alias: flash:monitor)
+npm run build             # compile only
+npm run flash             # flash app to device
+npm run monitor           # serial console only
+npm run flash:monitor     # flash once, then open serial (no watch)
+npm run dev               # flash + monitor; re-runs on save under main/
+npm run menuconfig        # ESP-IDF config UI
+npm run clean             # fullclean build tree (use only if build is broken)
+npm run bin               # write merged flash image to bins/
 ```
 
-Day-to-day loop after setup: edit → `npm run dev`. That rebuilds only what changed, flashes, and opens the serial monitor. There is no live reload; avoid `npm run clean` unless the build is broken. Use `npm run monitor` alone when you only need serial output and the device is already flashed.
+Day-to-day: `npm run dev`. There is no live UI reload. Optional but snappier watches: `brew install entr`.
 
-`flash` / `monitor` / `dev` auto-pick a USB serial port (`/dev/cu.usbmodem*` on macOS, `/dev/ttyACM*` on Linux) via `scripts/port.sh`. Override with `PORT=…` if needed.
-
-Other scripts: `npm run flash`, `npm run monitor`, `npm run flash:monitor`, `npm run menuconfig`, `npm run clean`, `npm run bin` (writes merged flash image to `bins/`).
-
-Prebuilt merged image (bootloader + partition table + app, flash at `0x0`):
-
-- [`bins/cardputer_adv_template.bin`](bins/cardputer_adv_template.bin)
-
-Override the serial port:
+`flash` / `monitor` / `flash:monitor` / `dev` auto-pick a USB serial port (`/dev/cu.usbmodem*` on macOS, `/dev/ttyACM*` on Linux) via `scripts/port.sh`. Override with `PORT=…` if needed:
 
 ```bash
 PORT=/dev/cu.usbmodem14201 npm run dev
 ```
+
+Prebuilt merged image (bootloader + partition table + app, flash at `0x0`):
+
+- [`bins/cardputer_adv_template.bin`](bins/cardputer_adv_template.bin)
 
 Or call `idf.py` directly after `. ~/esp/esp-idf/export.sh`.
 
@@ -106,6 +108,7 @@ Clears the LCD, waits for one TCA8418 key press, then draws the key code. That p
 package.json          # npm run build / flash / dev / …
 scripts/idf.sh        # sources ESP-IDF, runs idf.py
 scripts/port.sh       # auto-detect USB serial port (or $PORT)
+scripts/watch.sh      # used by npm run dev
 bins/                 # merged .bin (flash at 0x0)
 CMakeLists.txt
 sdkconfig.defaults    # 8 MB flash, USB Serial/JTAG console
