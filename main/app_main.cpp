@@ -104,7 +104,7 @@ extern "C" void app_main(void)
     display.setTextColor(TFT_WHITE, TFT_BLACK);
     display.setTextSize(2);
     display.setCursor(8, 40);
-    display.print("ADV hello");
+    display.print("Hello world!");
     display.setTextSize(1);
     display.setCursor(8, 80);
     display.print("Press any key...");
