@@ -9,7 +9,7 @@
     "flash": "bash scripts/idf.sh -p \"$(bash scripts/port.sh)\" flash",
     "monitor": "bash scripts/idf.sh -p \"$(bash scripts/port.sh)\" monitor",
     "flash:monitor": "bash scripts/idf.sh -p \"$(bash scripts/port.sh)\" flash monitor",
-    "dev": "bash scripts/watch.sh",
+    "dev": "pnpm run deps && bash scripts/watch.sh",
     "menuconfig": "bash scripts/idf.sh menuconfig",
     "clean": "bash scripts/idf.sh fullclean",
     "bin": "mkdir -p bins && bash scripts/idf.sh merge-bin -o \"$PWD/bins/cardputer_adv_template.bin\""
