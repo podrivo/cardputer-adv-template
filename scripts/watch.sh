@@ -1,11 +1,15 @@
 #!/usr/bin/env bash
 # Watch main/ and rebuild (and optionally app-flash) on change.
-# Usage: watch.sh [build|app-flash]
+# Hot path uses ninja (skips idf.py). Usage: watch.sh [build|app-flash]
 # Prefers `entr` if installed (`brew install entr`); otherwise polls mtimes.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+
+DEBOUNCE_MS=300
+export IDF_CCACHE_ENABLE=1
+export ESPBAUD="${ESPBAUD:-921600}"
 
 MODE="${1:-app-flash}"
 case "$MODE" in
@@ -24,15 +28,44 @@ else
   ONCE=0
 fi
 
+ensure_idf() {
+  if [[ -n "${IDF_PYTHON_ENV_PATH:-}" ]] && command -v idf.py >/dev/null 2>&1 && command -v ninja >/dev/null 2>&1; then
+    return 0
+  fi
+  local idf_root="${IDF_PATH:-$HOME/esp/esp-idf}"
+  if [[ ! -f "$idf_root/export.sh" ]]; then
+    echo "ESP-IDF not found at $idf_root — see README prerequisites." >&2
+    exit 1
+  fi
+  # shellcheck disable=SC1091
+  . "$idf_root/export.sh"
+}
+
+ensure_build_dir() {
+  if [[ -f build/build.ninja ]]; then
+    return 0
+  fi
+  echo "No build/ yet — one-time idf.py build…" >&2
+  bash scripts/idf.sh build
+}
+
+debounce() {
+  # Absorb bursty multi-file saves before kicking ninja.
+  sleep "$(awk "BEGIN { printf \"%.3f\", ${DEBOUNCE_MS}/1000 }")"
+}
+
 run_once() {
+  debounce
+  ensure_idf
+  ensure_build_dir
   case "$MODE" in
     build)
-      bash scripts/idf.sh build
+      ninja -C build
       ;;
     app-flash)
       # Does not restart monitor. If the port is held by `npm run monitor`,
       # close it first or flash from idf_monitor with Ctrl+T then Ctrl+F.
-      bash scripts/idf.sh -p "$(bash scripts/port.sh)" app-flash
+      ESPPORT="$(bash scripts/port.sh)" ESPBAUD="${ESPBAUD}" ninja -C build app-flash
       ;;
   esac
 }
@@ -69,10 +102,24 @@ fingerprint() {
   printf '%s\n' "$max"
 }
 
+# Wait until fingerprint stops changing (poll path only).
+wait_settled() {
+  local cur again
+  cur="$(fingerprint)"
+  while true; do
+    sleep "$(awk "BEGIN { printf \"%.3f\", ${DEBOUNCE_MS}/1000 }")"
+    again="$(fingerprint)"
+    if [[ "$again" == "$cur" ]]; then
+      return 0
+    fi
+    cur="$again"
+  done
+}
+
 action_label() {
   case "$MODE" in
-    build) echo "rebuild" ;;
-    app-flash) echo "rebuild + app-flash" ;;
+    build) echo "ninja rebuild" ;;
+    app-flash) echo "ninja app-flash @ ${ESPBAUD} baud" ;;
   esac
 }
 
@@ -95,7 +142,8 @@ while true; do
   sleep 2
   cur="$(fingerprint)"
   if [[ "$cur" != "$prev" ]]; then
-    prev="$cur"
+    wait_settled
+    prev="$(fingerprint)"
     echo "Change detected — $(action_label)…" >&2
     run_once
   fi

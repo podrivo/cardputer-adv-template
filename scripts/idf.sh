@@ -4,6 +4,7 @@
 set -euo pipefail
 
 export IDF_CCACHE_ENABLE=1
+export ESPBAUD="${ESPBAUD:-921600}"
 
 IDF_ROOT="${IDF_PATH:-$HOME/esp/esp-idf}"
 

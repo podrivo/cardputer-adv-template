@@ -30,7 +30,7 @@ xcode-select --install
 brew install cmake ninja dfu-util ccache
 ```
 
-`ccache` speeds up rebuilds; project scripts set `IDF_CCACHE_ENABLE=1` automatically.
+`ccache` speeds up rebuilds; project scripts set `IDF_CCACHE_ENABLE=1` automatically. `ninja` is required for the fast watch path.
 
 Optional if `python3` is missing: `brew install python3`.
 
@@ -76,19 +76,30 @@ With Node/npm (scripts load ESP-IDF for you):
 ```bash
 npm run deps              # clone M5GFX once into components/
 npm run setup             # idf.py set-target esp32s3 (once per checkout)
-npm run build             # compile only
+npm run build             # compile only (idf.py)
 npm run flash             # full flash (bootloader + partitions + app) — first bring-up / after partition changes
 npm run app-flash         # app image only (day-to-day)
 npm run monitor           # serial console only
 npm run flash:monitor     # full flash once, then open serial (no watch)
-npm run dev:build         # watch main/; rebuild only on save
-npm run dev               # watch main/; rebuild + app-flash on save (no monitor)
+npm run dev:build         # watch main/; ninja rebuild only on save
+npm run dev               # watch main/; ninja app-flash on save (no monitor)
 npm run menuconfig        # ESP-IDF config UI
 npm run clean             # fullclean build tree (use only if build is broken)
 npm run bin               # write merged flash image to bins/
 ```
 
-Day-to-day: `npm run dev:build` for fast compile feedback; `npm run dev` (or `npm run app-flash`) when you want the binary on device. Keep serial in a second terminal with `npm run monitor`. If the monitor is already open, flash from it with `Ctrl+T` then `Ctrl+F` instead of killing the session. There is no live UI reload. Optional but snappier watches: `brew install entr`.
+### Fast edit → live loop
+
+1. `npm run setup` + `npm run build` once per checkout (creates `build/`).
+2. `npm run dev:build` until the project compiles cleanly.
+3. `npm run dev` to push to the device on each save (uses **ninja** + **ESPBAUD=921600**, not full `idf.py` each time).
+4. Optional second terminal: `npm run monitor`. If monitor already holds the port, flash from it with `Ctrl+T` then `Ctrl+F` instead of running `dev`.
+
+Tweak colors/strings in [`main/theme.cpp`](main/theme.cpp) so you do not recompile M5GFX. Display helpers live in [`main/display.cpp`](main/display.cpp) (PCH’d).
+
+Override baud if needed: `ESPBAUD=460800 npm run dev`. On IDF 5.4+, flash baud is **not** an sdkconfig option — scripts set `ESPBAUD`.
+
+There is no live UI reload. Optional but snappier watches: `brew install entr`.
 
 `flash` / `app-flash` / `monitor` / `flash:monitor` / `dev` auto-pick a USB serial port (`/dev/cu.usbmodem*` on macOS, `/dev/ttyACM*` on Linux) via `scripts/port.sh`. Override with `PORT=…` if needed:
 
@@ -112,15 +123,18 @@ Clears the LCD, waits for one TCA8418 key press, then draws the key code. That p
 
 ```
 package.json          # npm run build / flash / dev / …
-scripts/idf.sh        # sources ESP-IDF (skips if already exported), runs idf.py
+scripts/idf.sh        # sources ESP-IDF (skips if already exported), runs idf.py @ 921600 baud
 scripts/port.sh       # auto-detect USB serial port (or $PORT)
-scripts/watch.sh      # used by npm run dev / dev:build
+scripts/watch.sh      # ninja hot path for npm run dev / dev:build
 bins/                 # merged .bin (flash at 0x0)
 CMakeLists.txt
 sdkconfig.defaults    # 8 MB flash, USB Serial/JTAG console
 main/app_main.cpp     # hello-world + keyboard
-main/display.cpp      # M5GFX helpers (isolated for faster incremental builds)
+main/theme.cpp        # colors/strings (edit here for fast visual tweaks)
+main/theme.hpp
+main/display.cpp      # M5GFX helpers
 main/display.hpp
+main/pch_display.hpp  # M5GFX precompiled header for display.cpp
 components/M5GFX/     # after clone (gitignored)
 ```
 
