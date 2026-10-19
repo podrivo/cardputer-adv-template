@@ -76,6 +76,8 @@ npm run build
 npm run flash:monitor     # default PORT=/dev/cu.usbmodem101
 ```
 
+Day-to-day loop after setup: edit → `npm run flash:monitor`. That rebuilds only what changed, flashes, and opens the serial monitor. There is no live reload; avoid `npm run clean` unless the build is broken. Use `npm run monitor` alone when you only need serial output and the device is already flashed.
+
 Other scripts: `npm run flash`, `npm run monitor`, `npm run menuconfig`, `npm run clean`, `npm run bin` (writes merged flash image to `bins/`).
 
 Prebuilt merged image (bootloader + partition table + app, flash at `0x0`):
