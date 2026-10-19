@@ -8,18 +8,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
-#define M5GFX_BOARD lgfx::boards::board_M5CardputerADV
-#include <M5GFX.h>
+#include "display.hpp"
 
 namespace {
 
 constexpr char TAG[] = "hello";
-
-// Display palette
-constexpr uint16_t COL_BG = TFT_BLUE;
-constexpr uint16_t COL_FG = TFT_WHITE;
-constexpr uint16_t COL_ERR = TFT_RED;
-constexpr uint16_t COL_OK_BG = TFT_DARKGREEN;
 
 // Cardputer ADV keyboard (TCA8418)
 constexpr gpio_num_t KBD_SDA = GPIO_NUM_8;
@@ -34,7 +27,6 @@ constexpr uint8_t TCA_REG_KP_GPIO1 = 0x1D;
 constexpr uint8_t TCA_REG_KP_GPIO2 = 0x1E;
 constexpr uint8_t TCA_REG_KP_GPIO3 = 0x1F;
 
-M5GFX display;
 i2c_master_bus_handle_t i2c_bus;
 i2c_master_dev_handle_t tca;
 
@@ -104,22 +96,12 @@ bool kbd_poll_press(uint8_t *keycode)
 
 extern "C" void app_main(void)
 {
-    display.init();
-    display.setRotation(1);
-    display.fillScreen(COL_BG);
-    display.setTextColor(COL_FG, COL_BG);
-    display.setTextSize(2);
-    display.setCursor(8, 40);
-    display.print("Hello world!");
-    display.setTextSize(1);
-    display.setCursor(8, 80);
-    display.print("Press any key...");
+    display_init();
+    display_show_prompt();
 
     if (!kbd_init()) {
         ESP_LOGE(TAG, "TCA8418 init failed — is this a Cardputer ADV?");
-        display.setCursor(8, 100);
-        display.setTextColor(COL_ERR, COL_BG);
-        display.print("No TCA8418");
+        display_show_kbd_error();
         return;
     }
 
@@ -136,9 +118,5 @@ extern "C" void app_main(void)
     std::snprintf(line, sizeof(line), "key %u", static_cast<unsigned>(key));
     ESP_LOGI(TAG, "%s", line);
 
-    display.fillScreen(COL_OK_BG);
-    display.setTextColor(COL_FG, COL_OK_BG);
-    display.setTextSize(2);
-    display.setCursor(8, 50);
-    display.print(line);
+    display_show_key(line);
 }

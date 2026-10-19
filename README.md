@@ -30,6 +30,8 @@ xcode-select --install
 brew install cmake ninja dfu-util ccache
 ```
 
+`ccache` speeds up rebuilds; project scripts set `IDF_CCACHE_ENABLE=1` automatically.
+
 Optional if `python3` is missing: `brew install python3`.
 
 ### 2. Get ESP-IDF v5.4.2
@@ -55,6 +57,8 @@ cd ~/esp/esp-idf
 
 You need a USB-C cable and the Cardputer ADV connected for flash/monitor.
 
+If the shell already has IDF exported, `scripts/idf.sh` skips re-sourcing `export.sh` (faster `npm run *` loops).
+
 ## One-time project deps (then offline)
 
 Pin and vendor [M5GFX](https://github.com/m5stack/M5GFX) locally (needs Cardputer ADV board support — **0.2.29+**):
@@ -73,18 +77,20 @@ With Node/npm (scripts load ESP-IDF for you):
 npm run deps              # clone M5GFX once into components/
 npm run setup             # idf.py set-target esp32s3 (once per checkout)
 npm run build             # compile only
-npm run flash             # flash app to device
+npm run flash             # full flash (bootloader + partitions + app) — first bring-up / after partition changes
+npm run app-flash         # app image only (day-to-day)
 npm run monitor           # serial console only
-npm run flash:monitor     # flash once, then open serial (no watch)
-npm run dev               # flash + monitor; re-runs on save under main/
+npm run flash:monitor     # full flash once, then open serial (no watch)
+npm run dev:build         # watch main/; rebuild only on save
+npm run dev               # watch main/; rebuild + app-flash on save (no monitor)
 npm run menuconfig        # ESP-IDF config UI
 npm run clean             # fullclean build tree (use only if build is broken)
 npm run bin               # write merged flash image to bins/
 ```
 
-Day-to-day: `npm run dev`. There is no live UI reload. Optional but snappier watches: `brew install entr`.
+Day-to-day: `npm run dev:build` for fast compile feedback; `npm run dev` (or `npm run app-flash`) when you want the binary on device. Keep serial in a second terminal with `npm run monitor`. If the monitor is already open, flash from it with `Ctrl+T` then `Ctrl+F` instead of killing the session. There is no live UI reload. Optional but snappier watches: `brew install entr`.
 
-`flash` / `monitor` / `flash:monitor` / `dev` auto-pick a USB serial port (`/dev/cu.usbmodem*` on macOS, `/dev/ttyACM*` on Linux) via `scripts/port.sh`. Override with `PORT=…` if needed:
+`flash` / `app-flash` / `monitor` / `flash:monitor` / `dev` auto-pick a USB serial port (`/dev/cu.usbmodem*` on macOS, `/dev/ttyACM*` on Linux) via `scripts/port.sh`. Override with `PORT=…` if needed:
 
 ```bash
 PORT=/dev/cu.usbmodem14201 npm run dev
@@ -106,13 +112,15 @@ Clears the LCD, waits for one TCA8418 key press, then draws the key code. That p
 
 ```
 package.json          # npm run build / flash / dev / …
-scripts/idf.sh        # sources ESP-IDF, runs idf.py
+scripts/idf.sh        # sources ESP-IDF (skips if already exported), runs idf.py
 scripts/port.sh       # auto-detect USB serial port (or $PORT)
-scripts/watch.sh      # used by npm run dev
+scripts/watch.sh      # used by npm run dev / dev:build
 bins/                 # merged .bin (flash at 0x0)
 CMakeLists.txt
 sdkconfig.defaults    # 8 MB flash, USB Serial/JTAG console
-main/app_main.cpp     # hello-world
+main/app_main.cpp     # hello-world + keyboard
+main/display.cpp      # M5GFX helpers (isolated for faster incremental builds)
+main/display.hpp
 components/M5GFX/     # after clone (gitignored)
 ```
 
