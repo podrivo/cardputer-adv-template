@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Watch main/ and rebuild (and optionally app-flash) on change.
-# Hot path uses ninja (skips idf.py). Usage: watch.sh [build|app-flash]
+# Watch main/ and fast-rebuild (optionally flash) on change.
+# Uses scripts/fast-build.sh (skips ldgen + idf.py). IDF is exported once in this process.
+# Usage: watch.sh [build|app-flash]
 # Prefers `entr` if installed (`brew install entr`); otherwise polls mtimes.
 set -euo pipefail
 
@@ -13,20 +14,12 @@ export ESPBAUD="${ESPBAUD:-921600}"
 
 MODE="${1:-app-flash}"
 case "$MODE" in
-  build|app-flash|--once) ;;
+  build|app-flash) ;;
   *)
     echo "Usage: $0 [build|app-flash]" >&2
     exit 1
     ;;
 esac
-
-# When entr restarts with --once, mode is passed as $2.
-if [[ "$MODE" == "--once" ]]; then
-  MODE="${2:-app-flash}"
-  ONCE=1
-else
-  ONCE=0
-fi
 
 ensure_idf() {
   if [[ -n "${IDF_PYTHON_ENV_PATH:-}" ]] && command -v idf.py >/dev/null 2>&1 && command -v ninja >/dev/null 2>&1; then
@@ -41,39 +34,21 @@ ensure_idf() {
   . "$idf_root/export.sh"
 }
 
-ensure_build_dir() {
-  if [[ -f build/build.ninja ]]; then
-    return 0
-  fi
-  echo "No build/ yet — one-time idf.py build…" >&2
-  bash scripts/idf.sh build
-}
-
 debounce() {
-  # Absorb bursty multi-file saves before kicking ninja.
   sleep "$(awk "BEGIN { printf \"%.3f\", ${DEBOUNCE_MS}/1000 }")"
 }
 
 run_once() {
   debounce
-  ensure_idf
-  ensure_build_dir
   case "$MODE" in
     build)
-      ninja -C build
+      bash scripts/fast-build.sh
       ;;
     app-flash)
-      # Does not restart monitor. If the port is held by `npm run monitor`,
-      # close it first or flash from idf_monitor with Ctrl+T then Ctrl+F.
-      ESPPORT="$(bash scripts/port.sh)" ESPBAUD="${ESPBAUD}" ninja -C build app-flash
+      bash scripts/fast-build.sh flash
       ;;
   esac
 }
-
-if [[ "$ONCE" -eq 1 ]]; then
-  run_once
-  exit $?
-fi
 
 list_watch_files() {
   find main -type f \( \
@@ -102,7 +77,6 @@ fingerprint() {
   printf '%s\n' "$max"
 }
 
-# Wait until fingerprint stops changing (poll path only).
 wait_settled() {
   local cur again
   cur="$(fingerprint)"
@@ -118,17 +92,33 @@ wait_settled() {
 
 action_label() {
   case "$MODE" in
-    build) echo "ninja rebuild" ;;
-    app-flash) echo "ninja app-flash @ ${ESPBAUD} baud" ;;
+    build) echo "fast-build (skip ldgen)" ;;
+    app-flash) echo "fast-build + app-flash @ ${ESPBAUD}" ;;
   esac
 }
+
+# Export IDF once in this long-lived process — entr children inherit the env
+# (no 2s export.sh on every save).
+ensure_idf
+if [[ ! -f build/build.ninja ]]; then
+  echo "No build/ yet — one-time idf.py build…" >&2
+  bash scripts/idf.sh build
+fi
 
 if command -v entr >/dev/null 2>&1; then
   echo "Watching with entr — save under main/ to $(action_label)." >&2
   echo "Ctrl+C to stop." >&2
   while true; do
-    # -d: exit when a new file appears so the list refreshes; -r: kill + restart on change
-    list_watch_files | entr -d -r bash scripts/watch.sh --once "$MODE"
+    # Run fast-build directly (inherits exported IDF). -d refreshes file list on new files.
+    # Do NOT re-enter watch.sh (that used to re-source export.sh every save).
+    case "$MODE" in
+      build)
+        list_watch_files | entr -d -r bash scripts/fast-build.sh
+        ;;
+      app-flash)
+        list_watch_files | entr -d -r bash scripts/fast-build.sh flash
+        ;;
+    esac
   done
 fi
 

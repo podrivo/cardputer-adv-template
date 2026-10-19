@@ -1,7 +1,7 @@
 #include "theme.hpp"
 
 // RGB565 (same values as LovyanGFX TFT_*). Edit these for quick visual iteration.
-uint16_t theme_col_bg = 0x07E0;     // green
+uint16_t theme_col_bg = 0xF800;     // blue
 uint16_t theme_col_fg = 0xFFFF;     // white
 uint16_t theme_col_err = 0xF800;    // red
 uint16_t theme_col_ok_bg = 0x03E0;  // dark green

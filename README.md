@@ -92,14 +92,24 @@ npm run bin               # write merged flash image to bins/
 
 1. `npm run setup` + `npm run build` once per checkout (creates `build/`).
 2. `npm run dev:build` until the project compiles cleanly.
-3. `npm run dev` to push to the device on each save (uses **ninja** + **ESPBAUD=921600**, not full `idf.py` each time).
+3. `npm run dev` to push to the device on each save via [`scripts/fast-build.sh`](scripts/fast-build.sh).
 4. Optional second terminal: `npm run monitor`. If monitor already holds the port, flash from it with `Ctrl+T` then `Ctrl+F` instead of running `dev`.
 
+**Why this is fast:** a normal `ninja` rebuild after a one-line edit spends ~4–5s regenerating `sections.ld` (ldgen) even though the linker script did not change, plus ~2s if `export.sh` runs again. `fast-build` compiles `main/`, then **reuses the existing `sections.ld`** and links/elf2images directly (~1.4s vs ~6s measured here). `watch.sh` exports IDF **once** and lets `entr` inherit that env (no re-export per save).
+
 Tweak colors/strings in [`main/theme.cpp`](main/theme.cpp) so you do not recompile M5GFX. Display helpers live in [`main/display.cpp`](main/display.cpp) (PCH’d).
+
+```bash
+npm run fast-build          # app .bin only (~1–2s after theme edit)
+npm run app-flash           # fast-build + flash @ 921600
+npm run app-flash:full      # official idf.py app-flash (runs ldgen)
+```
 
 Override baud if needed: `ESPBAUD=460800 npm run dev`. On IDF 5.4+, flash baud is **not** an sdkconfig option — scripts set `ESPBAUD`.
 
 There is no live UI reload. Optional but snappier watches: `brew install entr`.
+
+After `menuconfig` / CMake changes, run a normal `npm run build` once so ldgen refreshes; then `fast-build` / `dev` again.
 
 `flash` / `app-flash` / `monitor` / `flash:monitor` / `dev` auto-pick a USB serial port (`/dev/cu.usbmodem*` on macOS, `/dev/ttyACM*` on Linux) via `scripts/port.sh`. Override with `PORT=…` if needed:
 
@@ -124,8 +134,9 @@ Clears the LCD, waits for one TCA8418 key press, then draws the key code. That p
 ```
 package.json          # npm run build / flash / dev / …
 scripts/idf.sh        # sources ESP-IDF (skips if already exported), runs idf.py @ 921600 baud
+scripts/fast-build.sh # incremental build skipping ldgen (used by dev / app-flash)
 scripts/port.sh       # auto-detect USB serial port (or $PORT)
-scripts/watch.sh      # ninja hot path for npm run dev / dev:build
+scripts/watch.sh      # watch → fast-build for npm run dev / dev:build
 bins/                 # merged .bin (flash at 0x0)
 CMakeLists.txt
 sdkconfig.defaults    # 8 MB flash, USB Serial/JTAG console
