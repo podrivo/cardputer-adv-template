@@ -15,6 +15,12 @@ namespace {
 
 constexpr char TAG[] = "hello";
 
+// Display palette
+constexpr uint16_t COL_BG = TFT_BLUE;
+constexpr uint16_t COL_FG = TFT_WHITE;
+constexpr uint16_t COL_ERR = TFT_RED;
+constexpr uint16_t COL_OK_BG = TFT_DARKGREEN;
+
 // Cardputer ADV keyboard (TCA8418)
 constexpr gpio_num_t KBD_SDA = GPIO_NUM_8;
 constexpr gpio_num_t KBD_SCL = GPIO_NUM_9;
@@ -100,8 +106,8 @@ extern "C" void app_main(void)
 {
     display.init();
     display.setRotation(1);
-    display.fillScreen(TFT_BLACK);
-    display.setTextColor(TFT_WHITE, TFT_BLACK);
+    display.fillScreen(COL_BG);
+    display.setTextColor(COL_FG, COL_BG);
     display.setTextSize(2);
     display.setCursor(8, 40);
     display.print("Hello world!");
@@ -112,7 +118,7 @@ extern "C" void app_main(void)
     if (!kbd_init()) {
         ESP_LOGE(TAG, "TCA8418 init failed — is this a Cardputer ADV?");
         display.setCursor(8, 100);
-        display.setTextColor(TFT_RED, TFT_BLACK);
+        display.setTextColor(COL_ERR, COL_BG);
         display.print("No TCA8418");
         return;
     }
@@ -130,8 +136,8 @@ extern "C" void app_main(void)
     std::snprintf(line, sizeof(line), "key %u", static_cast<unsigned>(key));
     ESP_LOGI(TAG, "%s", line);
 
-    display.fillScreen(TFT_DARKGREEN);
-    display.setTextColor(TFT_WHITE, TFT_DARKGREEN);
+    display.fillScreen(COL_OK_BG);
+    display.setTextColor(COL_FG, COL_OK_BG);
     display.setTextSize(2);
     display.setCursor(8, 50);
     display.print(line);
