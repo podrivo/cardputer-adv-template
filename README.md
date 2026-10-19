@@ -67,12 +67,28 @@ After this, builds do not need the network.
 
 ## Build & flash
 
+With Node/npm (scripts load ESP-IDF for you):
+
 ```bash
-. ~/esp/esp-idf/export.sh
-idf.py set-target esp32s3
-idf.py build
-idf.py -p /dev/cu.usbmodem* flash monitor   # macOS — adjust port
+npm run deps              # clone M5GFX once
+npm run setup             # idf.py set-target esp32s3 (once per checkout)
+npm run build
+npm run flash:monitor     # default PORT=/dev/cu.usbmodem101
 ```
+
+Other scripts: `npm run flash`, `npm run monitor`, `npm run menuconfig`, `npm run clean`, `npm run bin` (writes merged flash image to `bins/`).
+
+Prebuilt merged image (bootloader + partition table + app, flash at `0x0`):
+
+- [`bins/cardputer_adv_template.bin`](bins/cardputer_adv_template.bin)
+
+Override the serial port:
+
+```bash
+PORT=/dev/cu.usbmodem14201 npm run flash:monitor
+```
+
+Or call `idf.py` directly after `. ~/esp/esp-idf/export.sh`.
 
 Linux often uses `/dev/ttyACM0`. Put the device in download mode if flash fails (hold G0 / reset per Stamp-S3 docs).
 
@@ -83,6 +99,9 @@ Clears the LCD, waits for one TCA8418 key press, then draws the key code. That p
 ## Layout
 
 ```
+package.json          # npm run build / flash / …
+scripts/idf.sh        # sources ESP-IDF, runs idf.py
+bins/                 # merged .bin (flash at 0x0)
 CMakeLists.txt
 sdkconfig.defaults    # 8 MB flash, USB Serial/JTAG console
 main/app_main.cpp     # hello-world
