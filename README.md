@@ -6,6 +6,12 @@ Fork this for games/apps. It is not a full demo and not a template for the origi
 
 Hardware: [Cardputer ADV](https://docs.m5stack.com/en/core/Cardputer-Adv) (Stamp-S3A / ESP32-S3, 8 MB flash, 1.14" LCD).
 
+UI text uses M5GFX / LovyanGFX `fonts::Font0` (Adafruit GLCD 5×7 glyphs in a 6×8 cell):
+
+![Font0 sample](font0_sample.png)
+
+![Font0 glyph sheet (256 chars)](font0_glyphs.png)
+
 ## Prerequisites (one-time)
 
 Follow Espressif’s [Linux/macOS setup for ESP-IDF v5.4.2](https://docs.espressif.com/projects/esp-idf/en/v5.4.2/esp32s3/get-started/linux-macos-setup.html). Summary for macOS:
