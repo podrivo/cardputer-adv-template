@@ -4,3 +4,5 @@ CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
 
 # USB-C console (Stamp-S3 USB Serial/JTAG)
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Flash baud is not an sdkconfig knob on IDF 5.4+; scripts set ESPBAUD=921600.
