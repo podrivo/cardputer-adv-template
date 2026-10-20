@@ -6,6 +6,8 @@ Fork this for games/apps. It is not a full demo and not a template for the origi
 
 Hardware: [Cardputer ADV](https://docs.m5stack.com/en/core/Cardputer-Adv) (Stamp-S3A / ESP32-S3, 8 MB flash, 1.14" LCD).
 
+Display: 240 × 135 pixels (1.14″ ST7789V2 IPS).
+
 UI text uses M5GFX / LovyanGFX `fonts::Font0` (Adafruit GLCD 5×7 glyphs in a 6×8 cell):
 
 ![Font0 sample](font0_sample.png)
