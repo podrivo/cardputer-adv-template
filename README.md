@@ -4,6 +4,8 @@ Minimal [ESP-IDF](https://docs.espressif.com/projects/esp-idf/) starter for the 
 
 Fork this for games/apps. It is not a full demo and not a template for the original Cardputer (GPIO matrix keyboard). ADV uses a **TCA8418** over I2C — if keys do nothing, you are on the wrong board.
 
+For a tiny multi-app factory menu built from this starter, see [cardputer-launcher](https://github.com/podrivo/cardputer-launcher) (Mini Launcher).
+
 Hardware: [Cardputer ADV](https://docs.m5stack.com/en/core/Cardputer-Adv) (Stamp-S3A / ESP32-S3, 8 MB flash, 1.14" LCD).
 
 Display: **240 × 135** pixels (1.14″ ST7789V2 IPS). UI content uses **8 px** padding from the screen edges (`setCursor(8, …)` in [`main/display.cpp`](main/display.cpp)). Native PNGs: [`font0_display_240x135.png`](font0_display_240x135.png) (play), [`font0_display_discover_240x135.png`](font0_display_discover_240x135.png) (new item). Shown 3× for readability:
