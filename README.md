@@ -6,13 +6,32 @@ Fork this for games/apps. It is not a full demo and not a template for the origi
 
 Hardware: [Cardputer ADV](https://docs.m5stack.com/en/core/Cardputer-Adv) (Stamp-S3A / ESP32-S3, 8 MB flash, 1.14" LCD).
 
-Display: 240 × 135 pixels (1.14″ ST7789V2 IPS).
+Display: **240 × 135** pixels (1.14″ ST7789V2 IPS). Native PNGs: [`font0_display_240x135.png`](font0_display_240x135.png) (play), [`font0_display_discover_240x135.png`](font0_display_discover_240x135.png) (new item). Shown 3× for readability:
+
+Play:
+
+![Cardputer play screen 240×135 @3x](font0_display_240x135@3x.png)
+
+New item discovery (flash background, Font0 size 2):
+
+![Cardputer discover screen 240×135 @3x](font0_display_discover_240x135@3x.png)
 
 UI text uses M5GFX / LovyanGFX `fonts::Font0` (Adafruit GLCD 5×7 glyphs in a 6×8 cell):
 
 ![Font0 sample](font0_sample.png)
 
 ![Font0 glyph sheet (256 chars)](font0_glyphs.png)
+
+Downloadable for Figma / mockups / web (same face, Adafruit BSD — [`fonts/LICENSE-Font0.txt`](fonts/LICENSE-Font0.txt)):
+
+| File | Use |
+|------|-----|
+| [`fonts/CardputerFont0.ttf`](fonts/CardputerFont0.ttf) | **Default** — Figma, macOS/Windows install |
+| [`fonts/CardputerFont0.otf`](fonts/CardputerFont0.otf) | OpenType/CFF alternative for desktop tools |
+| [`fonts/CardputerFont0.woff2`](fonts/CardputerFont0.woff2) | **Web** (preferred) |
+| [`fonts/CardputerFont0.woff`](fonts/CardputerFont0.woff) | Web (legacy) |
+
+Install `.ttf` or `.otf`, then set text size **8** for 1:1 Cardputer pixels (16 = 2×). Regenerate after `npm run deps` with `python3 scripts/gen_font0_ttf.py` (`pip install fonttools brotli`).
 
 ## Prerequisites (one-time)
 
