@@ -3,23 +3,32 @@
 # Uses scripts/fast-build.sh (skips ldgen + idf.py). IDF is exported once in this process.
 # Usage: watch.sh [build|app-flash]
 # Prefers `entr` if installed (`brew install entr`); otherwise polls mtimes.
+#
+# Agent-friendly: waits until sources settle, never kills an in-flight flash,
+# and keeps watching after build/flash failures.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-DEBOUNCE_MS=300
+# Quiet window before build/flash. Override with WATCH_SETTLE_MS (milliseconds).
+SETTLE_MS="${WATCH_SETTLE_MS:-1500}"
 export IDF_CCACHE_ENABLE=1
 export ESPBAUD="${ESPBAUD:-921600}"
 
 MODE="${1:-app-flash}"
 case "$MODE" in
-  build|app-flash) ;;
+  build|app-flash|--trigger) ;;
   *)
     echo "Usage: $0 [build|app-flash]" >&2
     exit 1
     ;;
 esac
+
+# entr / self-invoke: MODE is the second arg
+if [[ "$MODE" == "--trigger" ]]; then
+  MODE="${2:-app-flash}"
+fi
 
 ensure_idf() {
   if [[ -n "${IDF_PYTHON_ENV_PATH:-}" ]] && command -v idf.py >/dev/null 2>&1 && command -v ninja >/dev/null 2>&1; then
@@ -32,22 +41,6 @@ ensure_idf() {
   fi
   # shellcheck disable=SC1091
   . "$idf_root/export.sh"
-}
-
-debounce() {
-  sleep "$(awk "BEGIN { printf \"%.3f\", ${DEBOUNCE_MS}/1000 }")"
-}
-
-run_once() {
-  debounce
-  case "$MODE" in
-    build)
-      bash scripts/fast-build.sh
-      ;;
-    app-flash)
-      bash scripts/fast-build.sh flash
-      ;;
-  esac
 }
 
 list_watch_files() {
@@ -81,7 +74,7 @@ wait_settled() {
   local cur again
   cur="$(fingerprint)"
   while true; do
-    sleep "$(awk "BEGIN { printf \"%.3f\", ${DEBOUNCE_MS}/1000 }")"
+    sleep "$(awk "BEGIN { printf \"%.3f\", ${SETTLE_MS}/1000 }")"
     again="$(fingerprint)"
     if [[ "$again" == "$cur" ]]; then
       return 0
@@ -97,6 +90,47 @@ action_label() {
   esac
 }
 
+# Build (and flash) once sources are quiet. Retries if edits arrive mid-build.
+# Always returns 0 so entr / the poll loop keep running after failures.
+run_once() {
+  while true; do
+    wait_settled
+    local fp
+    fp="$(fingerprint)"
+    echo "Sources settled — $(action_label)…" >&2
+
+    if ! bash scripts/fast-build.sh; then
+      echo "Build failed — still watching for the next change…" >&2
+      return 0
+    fi
+
+    if [[ "$(fingerprint)" != "$fp" ]]; then
+      echo "Sources changed during build — retrying…" >&2
+      continue
+    fi
+
+    if [[ "$MODE" == "app-flash" ]]; then
+      if ! bash scripts/fast-build.sh flash-only; then
+        echo "Flash failed — still watching for the next change…" >&2
+        return 0
+      fi
+      if [[ "$(fingerprint)" != "$fp" ]]; then
+        echo "Sources changed during flash — rebuilding…" >&2
+        continue
+      fi
+    fi
+
+    return 0
+  done
+}
+
+# --- entr child entrypoint ---
+if [[ "${1:-}" == "--trigger" ]]; then
+  ensure_idf
+  run_once
+  exit 0
+fi
+
 # Export IDF once in this long-lived process — entr children inherit the env
 # (no 2s export.sh on every save).
 ensure_idf
@@ -107,34 +141,27 @@ fi
 
 if command -v entr >/dev/null 2>&1; then
   echo "Watching with entr — save under main/ to $(action_label)." >&2
-  echo "Ctrl+C to stop." >&2
+  echo "Settles ${SETTLE_MS}ms before build; Ctrl+C to stop." >&2
   while true; do
-    # Run fast-build directly (inherits exported IDF). -d refreshes file list on new files.
-    # Do NOT re-enter watch.sh (that used to re-source export.sh every save).
-    case "$MODE" in
-      build)
-        list_watch_files | entr -d -r bash scripts/fast-build.sh
-        ;;
-      app-flash)
-        list_watch_files | entr -d -r bash scripts/fast-build.sh flash
-        ;;
-    esac
+    # No -r: never kill an in-flight build/flash when the next save arrives.
+    # --trigger always exits 0 so a compile error does not stop the watcher.
+    # -d refreshes the file list when new files appear under main/.
+    list_watch_files | entr -d bash "$ROOT/scripts/watch.sh" --trigger "$MODE" || true
   done
 fi
 
 echo "Watching via poll (install entr for snappier reloads: brew install entr)" >&2
-echo "Save under main/ to $(action_label). Ctrl+C to stop." >&2
+echo "Save under main/ to $(action_label). Settles ${SETTLE_MS}ms. Ctrl+C to stop." >&2
 
 prev="$(fingerprint)"
 run_once
+prev="$(fingerprint)"
 
 while true; do
-  sleep 2
+  sleep 1
   cur="$(fingerprint)"
   if [[ "$cur" != "$prev" ]]; then
-    wait_settled
-    prev="$(fingerprint)"
-    echo "Change detected — $(action_label)…" >&2
     run_once
+    prev="$(fingerprint)"
   fi
 done
