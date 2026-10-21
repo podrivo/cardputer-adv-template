@@ -124,6 +124,8 @@ npm run bin               # write merged flash image to bins/
 
 **Why this is fast:** a normal `ninja` rebuild after a one-line edit spends ~4–5s regenerating `sections.ld` (ldgen) even though the linker script did not change, plus ~2s if `export.sh` runs again. `fast-build` compiles `main/`, then **reuses the existing `sections.ld`** and links/elf2images directly (~1.4s vs ~6s measured here). `watch.sh` exports IDF **once** and lets `entr` inherit that env (no re-export per save).
 
+**Agent-safe watch:** `watch.sh` waits until `main/` is quiet for 1.5s (`WATCH_SETTLE_MS`) before building, never kills an in-flight flash when the next save arrives, skips flash if sources changed mid-build, and keeps watching after compile errors. That way multi-file agent edits do not reset the device with half-written firmware or stop `npm run dev`.
+
 Tweak colors/strings in [`main/theme.cpp`](main/theme.cpp) so you do not recompile M5GFX. Display helpers live in [`main/display.cpp`](main/display.cpp) (PCH’d).
 
 ```bash
@@ -132,7 +134,7 @@ npm run app-flash           # fast-build + flash @ 921600
 npm run app-flash:full      # official idf.py app-flash (runs ldgen)
 ```
 
-Override baud if needed: `ESPBAUD=460800 npm run dev`. On IDF 5.4+, flash baud is **not** an sdkconfig option — scripts set `ESPBAUD`.
+Override baud if needed: `ESPBAUD=460800 npm run dev`. Settle window: `WATCH_SETTLE_MS=2000 npm run dev`. On IDF 5.4+, flash baud is **not** an sdkconfig option — scripts set `ESPBAUD`.
 
 There is no live UI reload. Optional but snappier watches: `brew install entr`.
 
