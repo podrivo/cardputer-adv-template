@@ -39,10 +39,12 @@ NAME_TABLE = {
     "uniqueFontIdentifier": "Cardputer Font0 Regular:Adafruit GLCD",
     "fullName": "Cardputer Font0 Regular",
     "psName": "CardputerFont0-Regular",
-    "version": "Version 1.000",
+    "version": "Version 1.001",
     "description": (
-        "Pixel font matching M5GFX/LovyanGFX fonts::Font0 "
-        "(Adafruit GLCD 5x7 in 6x8 cell). For Cardputer ADV UI mockups."
+        "Pixel font matching M5GFX/LovyanGFX fonts::Font0 bitmaps "
+        "(Adafruit GLCD 5x7). Advances are proportional (ink width + 1px) "
+        "so narrow glyphs like i/l are not padded to the 6px mono cell. "
+        "For Cardputer ADV UI mockups."
     ),
     "manufacturer": "cardputer-alchemy (from Adafruit Industries bitmap)",
     "designer": "Adafruit Industries (bitmap); Cardputer Font0 packaging",
@@ -61,14 +63,40 @@ def load_bytes(path: Path) -> list[int]:
     return nums
 
 
-def draw_code(pen, nums: list[int], code: int) -> None:
+def ink_cols(nums: list[int], code: int) -> tuple[int, int] | None:
+    """Return inclusive [left, right] columns with ink, or None if empty."""
     base = code * 5
+    left = right = None
+    for col in range(5):
+        if nums[base + col]:
+            if left is None:
+                left = col
+            right = col
+    if left is None:
+        return None
+    return left, right
+
+
+def glyph_advance(nums: list[int], code: int) -> int:
+    """Ink width + 1px gap. Empty glyphs keep the classic 6px mono cell."""
+    bounds = ink_cols(nums, code)
+    if bounds is None:
+        return ADVANCE
+    left, right = bounds
+    return (right - left + 1 + 1) * PIXEL
+
+
+def draw_code(pen, nums: list[int], code: int) -> None:
+    """Draw glyph left-trimmed so ink starts at x=0 (no empty left bearing)."""
+    base = code * 5
+    bounds = ink_cols(nums, code)
+    shift = 0 if bounds is None else bounds[0]
     for col in range(5):
         byte = nums[base + col]
         for row in range(8):
             if not (byte & (1 << row)):
                 continue
-            x0 = col * PIXEL
+            x0 = (col - shift) * PIXEL
             y0 = (BASELINE_FROM_TOP - row - 1) * PIXEL
             pen.moveTo((x0, y0))
             pen.lineTo((x0 + PIXEL, y0))
@@ -114,12 +142,13 @@ def build_ttf(nums: list[int], glyph_order: list[str], advance: dict[str, int],
 def build_otf(nums: list[int], glyph_order: list[str], advance: dict[str, int],
               ascender: int, descender: int, path: Path) -> None:
     charstrings = {}
-    pen = T2CharStringPen(ADVANCE, None)
+    pen = T2CharStringPen(advance[".notdef"], None)
     charstrings[".notdef"] = pen.getCharString()
     for code in range(len(nums) // 5):
-        pen = T2CharStringPen(ADVANCE, None)
+        name = f"uni{code:04X}"
+        pen = T2CharStringPen(advance[name], None)
         draw_code(pen, nums, code)
-        charstrings[f"uni{code:04X}"] = pen.getCharString()
+        charstrings[name] = pen.getCharString()
 
     fb = FontBuilder(UPM, isTTF=False)
     setup_common(fb, glyph_order, advance, ascender, descender)
@@ -151,7 +180,8 @@ def main() -> None:
     nums = load_bytes(GLCD)
     nglyphs = len(nums) // 5
     glyph_order = [".notdef"] + [f"uni{code:04X}" for code in range(nglyphs)]
-    advance = {name: ADVANCE for name in glyph_order}
+    advance = {".notdef": ADVANCE}
+    advance.update({f"uni{code:04X}": glyph_advance(nums, code) for code in range(nglyphs)})
     ascender = BASELINE_FROM_TOP * PIXEL
     descender = -(CELL_H - BASELINE_FROM_TOP) * PIXEL
 
@@ -165,7 +195,11 @@ def main() -> None:
 
     for path in (ttf_path, otf_path, *web):
         print(f"wrote {path} ({path.stat().st_size} bytes)")
-    print(f"{nglyphs} glyphs. Figma/desktop: prefer .ttf (size 8 = 1:1). Web: prefer .woff2.")
+    narrow = sum(1 for code in range(nglyphs) if advance[f"uni{code:04X}"] < ADVANCE)
+    print(
+        f"{nglyphs} glyphs ({narrow} narrower than 6px). "
+        "Figma/desktop: prefer .ttf (size 8 = 1:1). Web: prefer .woff2."
+    )
 
 
 if __name__ == "__main__":

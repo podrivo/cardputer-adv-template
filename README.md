@@ -16,7 +16,7 @@ New item discovery (flash background, Font0 size 2):
 
 ![Cardputer discover screen 240×135 @3x](font0_display_discover_240x135@3x.png)
 
-UI text uses M5GFX / LovyanGFX `fonts::Font0` (Adafruit GLCD 5×7 glyphs in a 6×8 cell):
+UI text uses M5GFX / LovyanGFX `fonts::Font0` (Adafruit GLCD 5×7 glyphs in a 6×8 mono cell on device). The packaged desktop/web fonts use the same bitmaps with **proportional advances** (ink width + 1px) so narrow letters like `i` / `l` are not padded on the right:
 
 ![Font0 sample](font0_sample.png)
 
@@ -31,7 +31,7 @@ Downloadable for Figma / mockups / web (same face, Adafruit BSD — [`fonts/LICE
 | [`fonts/CardputerFont0.woff2`](fonts/CardputerFont0.woff2) | **Web** (preferred) |
 | [`fonts/CardputerFont0.woff`](fonts/CardputerFont0.woff) | Web (legacy) |
 
-Install `.ttf` or `.otf`, then set text size **8** for 1:1 Cardputer pixels (16 = 2×). Regenerate after `npm run deps` with `python3 scripts/gen_font0_ttf.py` (`pip install fonttools brotli`).
+Install `.ttf` or `.otf`, then set text size **8** for 1:1 Cardputer pixels (16 = 2×). Regenerate after `npm run deps` with `python3 scripts/gen_font0_ttf.py` (`pip install fonttools brotli`) and preview PNGs with `python3 scripts/gen_font0_images.py`.
 
 ## Prerequisites (one-time)
 
