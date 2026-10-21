@@ -3,8 +3,9 @@
 # Skips ESP-IDF ldgen (~4–5s) when only app object contents changed.
 #
 # Usage:
-#   scripts/fast-build.sh           # build app .bin
-#   scripts/fast-build.sh flash     # build + app-flash
+#   scripts/fast-build.sh             # build app .bin
+#   scripts/fast-build.sh flash       # build + app-flash
+#   scripts/fast-build.sh flash-only  # app-flash existing .bin (no rebuild)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -14,9 +15,16 @@ export IDF_CCACHE_ENABLE=1
 export ESPBAUD="${ESPBAUD:-921600}"
 
 DO_FLASH=0
-if [[ "${1:-}" == "flash" ]]; then
-  DO_FLASH=1
-fi
+FLASH_ONLY=0
+case "${1:-}" in
+  flash) DO_FLASH=1 ;;
+  flash-only) FLASH_ONLY=1 ;;
+  "" ) ;;
+  *)
+    echo "Usage: $0 [flash|flash-only]" >&2
+    exit 1
+    ;;
+esac
 
 ensure_idf() {
   if [[ -n "${IDF_PYTHON_ENV_PATH:-}" ]] && command -v idf.py >/dev/null 2>&1 && command -v ninja >/dev/null 2>&1; then
@@ -31,7 +39,28 @@ ensure_idf() {
   . "$idf_root/export.sh"
 }
 
+do_flash() {
+  port="$(bash scripts/port.sh)"
+  echo "app-flash @ ${ESPBAUD} on ${port}…" >&2
+  (
+    cd build
+    esptool.py --chip esp32s3 -p "$port" -b "$ESPBAUD" \
+      --before default_reset --after hard_reset \
+      write_flash @"$ROOT/build/flash_app_args"
+  )
+}
+
 ensure_idf
+
+if [[ "$FLASH_ONLY" -eq 1 ]]; then
+  if [[ ! -f build/flash_app_args ]]; then
+    echo "No build/flash_app_args — run a full build first." >&2
+    exit 1
+  fi
+  do_flash
+  echo "fast-build done." >&2
+  exit 0
+fi
 
 if [[ ! -f build/build.ninja ]]; then
   echo "No build/ yet — one-time idf.py build…" >&2
@@ -86,14 +115,7 @@ echo "elf2image…" >&2
 )
 
 if [[ "$DO_FLASH" -eq 1 ]]; then
-  port="$(bash scripts/port.sh)"
-  echo "app-flash @ ${ESPBAUD} on ${port}…" >&2
-  (
-    cd build
-    esptool.py --chip esp32s3 -p "$port" -b "$ESPBAUD" \
-      --before default_reset --after hard_reset \
-      write_flash @"$ROOT/build/flash_app_args"
-  )
+  do_flash
 fi
 
 echo "fast-build done." >&2
